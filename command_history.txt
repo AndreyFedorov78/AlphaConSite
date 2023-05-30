@@ -7,3 +7,8 @@ docker-compose run --rm web-app sh -c "python  manage.py migrate"
 # создаем пользователя
 docker-compose run --rm web-app sh -c "python  manage.py createsuperuser"
 
+# собрать контейнер
+docker-compose build
+
+#запустить контейнер
+docker-compose up
