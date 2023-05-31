@@ -12,3 +12,8 @@ docker-compose build
 
 #запустить контейнер
 docker-compose up
+
+
+# shell в контейнере
+docker-compose run --rm web-app sh
+docker-compose run -u root --rm web-app  sh #  от рута

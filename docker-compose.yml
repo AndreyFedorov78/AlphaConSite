@@ -1,12 +1,15 @@
+#TODO: хорошо бы еще настроить PHPMyAdmin
+#TODO: необходимо конкретизировать место хранения файла БД
 services:
+#  непосредственно само приложение Django
   web-app:
     build:
       context: .
     ports:
       - "8000:8000"
-
     volumes:
       - ./service:/service
+      - ./socket:/socket
     environment:
       - DB_HOST=database
       - DB_NAME=alphacon
@@ -15,9 +18,12 @@ services:
     depends_on:
       - database
     command:
-      sh -c "python manage.py runserver 0.0.0.0:8000"
+      #  старт гуникорна и отладочной версии на 8000 порту
+      sh -c "gunicorn --access-logfile - --workers 3 --bind unix:/socket/gunicorn.sock alphacon.wsgi:application& python manage.py runserver 0.0.0.0:8000"
+      #sh -c "python manage.py runserver 0.0.0.0:8000" # отдельный старт отладчика
+      # sh -c "gunicorn --access-logfile - --workers 3 --bind unix:/socket/gunicorn.sock alphacon.wsgi:application&" # отдельный старт гуникорна
 
-
+# База данных
   database:
     image: postgres:14.6-alpine
     environment:
@@ -25,44 +31,51 @@ services:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=LOIJasd#6
 
-  redis:
-    image: redis:7.0.5-alpine
-    hostname: redis
-
-
-  worker:
-    build:
-      context: .
-    hostname: worker
-    entrypoint: celery
-    command: -A celery_app.app worker --loglevel=info
-    volumes:
-      - ./service:/service
-    links:
-      - redis
-    depends_on:
-      - redis
-
-  flower:
-    build:
-      context: .
-    hostname: flower
-    entrypoint: celery
-    command: -A celery_app.app flower
-    volumes:
-      - ./service:/service
-    links:
-      - redis
-    depends_on:
-      - redis
-    ports:
-      - "5555:5555"
-
   nginx:
       image: nginx
       ports:
         - "80:80"
-  #    volumes:
-  #      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-     # depends_on:
-     #   - web-app
+      volumes:
+        - ./socket:/socket
+        - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      depends_on:
+        - web-app
+
+
+# redis и worker нужны только в случае использования фоновых процессов
+# часто они не нужны
+#  redis:
+#    image: redis:7.0.5-alpine
+#    hostname: redis
+
+ # worker:
+ #   build:
+ #     context: .
+ #   hostname: worker
+ #   entrypoint: celery
+ #   command: -A celery_app.app worker --loglevel=info
+ #   volumes:
+ #     - ./service:/service
+ #   links:
+ #     - redis
+ #   depends_on:
+ #     - redis
+
+
+  # контроль celery процессов через web сервис
+  #flower:
+  #  build:
+  #    context: .
+  #  hostname: flower
+  #  entrypoint: celery
+  #  command: -A celery_app.app flower
+  #  volumes:
+  #    - ./service:/service
+  #  links:
+  #    - redis
+  #  depends_on:
+  #    - redis
+  #  ports:
+  #    - "5555:5555"
+
+
